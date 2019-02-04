@@ -1,0 +1,7 @@
+pandas
+selenium
+datetime
+nltk
+langdetect
+math
+time
