@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from apitweet.apitweet import Apitweet
+from apitweet.strategies import Strategies
+import json
+import os
+# read the credentials to get the email and the password for the connection
+with open('apitweet/apitweet/variables.json') as variables_json:
+    variables = json.load(variables_json)
+email = variables['email']
+password = variables['password']
+api = Apitweet(email, password)
+strat = Strategies(api)
+strat.followInterest()

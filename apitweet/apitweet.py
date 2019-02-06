@@ -8,7 +8,7 @@ Created on Wed Jan 16 20:00:06 2019
 from selenium import webdriver
 import pandas as pd
 import time
-import math
+import numpy as np
 import selenium.common.exceptions as selexcept
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -118,52 +118,25 @@ class Apitweet():
               username, ' is following ...')
         self.driver.get(basePath + username + '/following')
         time.sleep(2)
+        last_height = self.driver.execute_script(
+            "return document.body.scrollHeight")
         while True:
             self.driver.execute_script(
                 "window.scrollTo(0, document.body.scrollHeight);")
-            try:
-                self.wait.until(EC.visibility_of_element_located(
-                    (By.XPATH, "//*[. = 'Loading...']")))
-                time.sleep(1)
-            except selexcept.TimeoutException:
-                print('No more element to load')
+            time.sleep(2)
+            new_height = self.driver.execute_script(
+                "return document.body.scrollHeight")
+            grids = self.driver.find_element_by_css_selector(
+                '.GridTimeline-items').find_elements_by_css_selector('.Grid.Grid--withGutter')
+            if new_height == last_height or len(grids)*6 > nb:
                 break
-            else:
-                print('... there are still following element to load')
-                continue
-
-        grids = self.driver.find_element_by_css_selector(
-            '.GridTimeline-items').find_elements_by_css_selector('.Grid.Grid--withGutter')
+            last_height = new_height
         items = []
         for grid in grids:
             for case in grid.find_elements_by_css_selector('.ProfileCard'):
                 items.append(case)
-        print(len(items))
-#        df = []
-#        for i in range(nb):
-#            username = items[i].get_attribute('data-screen-name')
-#            title = items[i].find_element_by_css_selector('.fullname').text
-#            shortbio = items[i].find_element_by_css_selector('.ProfileCard-bio').text
-#            df.append([username,title,shortbio])
-#        df = pd.DataFrame(df,columns = ['username','title','shortBio'])
-#        print('done')
-#        return df.sample(frac=1).iloc[:nb,:]
-
-    def getFollowers(self, username, nb=100):
-        print('-------------------------------------------------')
-        print('getting list of ', nb, ' followers of ', username, ' ...')
-        self.driver.get(basePath + username + '/followers')
-        time.sleep(2)
-        for i in range(math.ceil(nb/18)):
-            self.driver.execute_script(
-                "window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(1)
-        grids = self.driver.find_element_by_css_selector(
-            '.GridTimeline-items').find_elements_by_css_selector('.Grid.Grid--withGutter')
-        items = []
-        for grid in grids:
-            for case in grid.find_elements_by_css_selector('.ProfileCard'):
-                items.append(case)
+        if len(items) < nb:
+            nb = len(items)
         df = []
         for i in range(nb):
             username = items[i].get_attribute('data-screen-name')
@@ -172,8 +145,43 @@ class Apitweet():
                 '.ProfileCard-bio').text
             df.append([username, title, shortbio])
         df = pd.DataFrame(df, columns=['username', 'title', 'shortBio'])
-        print('done')
-        return df.sample(frac=1).iloc[:nb, :]
+        print('done. Found ', nb, ' followings')
+        return df.sample(frac=1)
+
+    def getFollowers(self, username, nb=100):
+        print('-------------------------------------------------')
+        print('getting list of ', nb, ' people that follow ', username, ' ...')
+        self.driver.get(basePath + username + '/followers')
+        time.sleep(2)
+        last_height = self.driver.execute_script(
+            "return document.body.scrollHeight")
+        while True:
+            self.driver.execute_script(
+                "window.scrollTo(0, document.body.scrollHeight);")
+            time.sleep(2)
+            new_height = self.driver.execute_script(
+                "return document.body.scrollHeight")
+            grids = self.driver.find_element_by_css_selector(
+                '.GridTimeline-items').find_elements_by_css_selector('.Grid.Grid--withGutter')
+            if new_height == last_height or len(grids)*6 > nb:
+                break
+            last_height = new_height
+        items = []
+        for grid in grids:
+            for case in grid.find_elements_by_css_selector('.ProfileCard'):
+                items.append(case)
+        if len(items) < nb:
+            nb = len(items)
+        df = []
+        for i in range(nb):
+            username = items[i].get_attribute('data-screen-name')
+            title = items[i].find_element_by_css_selector('.fullname').text
+            shortbio = items[i].find_element_by_css_selector(
+                '.ProfileCard-bio').text
+            df.append([username, title, shortbio])
+        df = pd.DataFrame(df, columns=['username', 'title', 'shortBio'])
+        print('done. Found ', nb, ' followers')
+        return df.sample(frac=1)
 
     def follow(self, username):
         print('-------------------------------------------------')
@@ -221,15 +229,3 @@ class Apitweet():
         for i in range(nb):
             tweets.append(Tweet(gridTweets[i], self.driver))
         return tweets
-
-
-if __name__ == "__main__":
-    # read the credentials to get the email and the password for the connection
-    with open('credentials.json') as credentials_json:
-        credentials = json.load(credentials_json)
-    email = credentials['email']
-    password = credentials['password']
-    apitweet = Apitweet(email, password)
-    #strat = Strategies(apitweet)
-    # strat.followInterest()
-    apitweet.getFollowings('ukttec')

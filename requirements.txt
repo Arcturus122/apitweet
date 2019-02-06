@@ -1,7 +1,6 @@
+numpy
+datetime
 pandas
 selenium
-datetime
 nltk
 langdetect
-math
-time
